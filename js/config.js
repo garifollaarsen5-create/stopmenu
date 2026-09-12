@@ -3,6 +3,6 @@
 // Project URL мен anon public кілтті осында қойыңыз.
 
 window.STOPMENU_CONFIG = {
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  supabaseUrl: "https://nfvtofnvzhdxwnfhycsj.supabase.co",
+  supabaseAnonKey: "sb_publishable_TGvxRghNOWTwwU_CmpJurA_ANAQhne-",
 };
