@@ -17,7 +17,7 @@ const T = {
     netErr: "Байланыс жоқ. Интернетті тексеріп, қайталаңыз.",
     noConfig: "Панель әлі қосылмаған: Supabase баптауы жоқ.",
     noSites: "Сізге әзірге сайт тіркелмеген. Әзірлеушіге хабарласыңыз.",
-    lead: "Тағам бітсе — қосқышты өшіріңіз, ол сайтта «Уақытша жоқ» болып тұрады. Қайта пайда болса — қайта қосыңыз.",
+    lead: "Тағам бітсе — қосқышты өшіріңіз, ол сайтта «Уақытша жоқ» болып тұрады. Қайта пайда болса — қайта қосыңыз. Тек бір көлемі не дәмі бітсе (мысалы, 1 л кола) — тағамның астындағы сол батырманы басыңыз.",
     search: "Тағамды іздеу",
     inStock: "Бар",
     stopped: "Стопта",
@@ -44,7 +44,7 @@ const T = {
     netErr: "Нет связи. Проверьте интернет и повторите.",
     noConfig: "Панель ещё не подключена: нет настроек Supabase.",
     noSites: "К вам пока не привязан сайт. Напишите разработчику.",
-    lead: "Блюдо закончилось — выключите переключатель, на сайте оно станет «Временно нет». Появилось — включите обратно.",
+    lead: "Блюдо закончилось — выключите переключатель, на сайте оно станет «Временно нет». Появилось — включите обратно. Закончился только один объём или вкус (например, кола 1 л) — нажмите эту кнопку под блюдом.",
     search: "Поиск блюда",
     inStock: "Есть",
     stopped: "Стоп",
@@ -135,6 +135,43 @@ function showLogin(error) {
 }
 
 // ---------- Тізім ----------
+// Нұсқаның кілті сайттың корзина кілтімен бірдей: "id:көлем", "id:көлем:дәм" немесе "id::дәм"
+function optKey(item, v, f) {
+  const parts = [String(item.id)];
+  if (item.variants) parts.push(v);
+  if (item.flavors) {
+    if (!item.variants) parts.push("");
+    parts.push(f);
+  }
+  return parts.join(":");
+}
+
+// Көлем/дәм батырмалары: басу — тек сол нұсқаны стопқа қою/алу
+function optsHtml(item) {
+  const vs = item.variants && item.variants.length ? item.variants : null;
+  const fs = item.flavors && item.flavors.length ? item.flavors : null;
+  if (!vs && !fs) return "";
+  const whole = state.stopped.has(String(item.id));
+  const chip = (key, label) => {
+    const s = state.stopped.has(key);
+    return `<button type="button" class="opt${s ? " opt--stopped" : ""}" data-id="${esc(key)}"
+      aria-pressed="${!s}" ${whole || state.busy.has(key) ? "disabled" : ""}>${esc(label)}</button>`;
+  };
+  const chips = (list) => `<div class="opts__chips">${list.join("")}</div>`;
+  let html;
+  if (fs && vs) {
+    html = fs.map((f) => `<div class="opts__line">
+      <span class="opts__name">${esc(tr(f))}</span>
+      ${chips(vs.map((v) => chip(optKey(item, v.id, f.id), tr(v))))}
+    </div>`).join("");
+  } else if (fs) {
+    html = chips(fs.map((f) => chip(optKey(item, "", f.id), tr(f))));
+  } else {
+    html = chips(vs.map((v) => chip(optKey(item, v.id), tr(v))));
+  }
+  return `<div class="opts${whole ? " opts--off" : ""}" data-for="${esc(item.id)}">${html}</div>`;
+}
+
 function itemRows(items) {
   return items.map((item) => {
     const stopped = state.stopped.has(String(item.id));
@@ -144,15 +181,18 @@ function itemRows(items) {
     const img = item.img && base
       ? `<img src="${esc(base)}/img/menu/${esc(item.img)}-s.webp" alt="" loading="lazy">`
       : "";
-    return `<label class="row${stopped ? " row--stopped" : ""}">
-      <span class="row__img">${img}</span>
-      <span class="row__text">
-        <span class="row__name">${esc(tr(item.name))}</span>
-        ${p != null ? `<span class="row__price">${price(p)}</span>` : ""}
-      </span>
-      <span class="row__state">${stopped ? t("stopped") : t("inStock")}</span>
-      <input class="switch" type="checkbox" data-id="${esc(item.id)}" ${stopped ? "" : "checked"} ${busy ? "disabled" : ""} aria-label="${esc(tr(item.name))}">
-    </label>`;
+    return `<div class="item">
+      <label class="row${stopped ? " row--stopped" : ""}">
+        <span class="row__img">${img}</span>
+        <span class="row__text">
+          <span class="row__name">${esc(tr(item.name))}</span>
+          ${p != null ? `<span class="row__price">${price(p)}</span>` : ""}
+        </span>
+        <span class="row__state">${stopped ? t("stopped") : t("inStock")}</span>
+        <input class="switch" type="checkbox" data-id="${esc(item.id)}" ${stopped ? "" : "checked"} ${busy ? "disabled" : ""} aria-label="${esc(tr(item.name))}">
+      </label>
+      ${optsHtml(item)}
+    </div>`;
   }).join("");
 }
 
@@ -180,15 +220,28 @@ function paintCount() {
 
 // Тек бір жолды жаңартамыз: басу кезінде тізімді қайта сызсақ, қосқыш екі рет ауысып кетеді
 function paintRow(id) {
-  const input = $(`.switch[data-id="${window.CSS && CSS.escape ? CSS.escape(id) : id}"]`);
-  if (!input) return;
+  const el = $(`[data-id="${window.CSS && CSS.escape ? CSS.escape(id) : id}"]`, $("#list"));
+  if (!el) return;
   const stopped = state.stopped.has(id);
-  const row = input.closest(".row");
-  input.checked = !stopped;
-  input.disabled = state.busy.has(id);
+  if (el.classList.contains("opt")) {
+    const whole = el.closest(".opts").classList.contains("opts--off");
+    el.classList.toggle("opt--stopped", stopped);
+    el.setAttribute("aria-pressed", String(!stopped));
+    el.disabled = whole || state.busy.has(id);
+    return paintCount();
+  }
+  const row = el.closest(".row");
+  el.checked = !stopped;
+  el.disabled = state.busy.has(id);
   row.classList.toggle("row--stopped", stopped);
   const st = row.querySelector(".row__state");
   if (st) st.textContent = stopped ? t("stopped") : t("inStock");
+  // бүкіл тағам стопта болса, көлем батырмалары күңгірт тұрады
+  const opts = el.closest(".item").querySelector(".opts");
+  if (opts) {
+    opts.classList.toggle("opts--off", stopped);
+    $$(".opt", opts).forEach((b) => { b.disabled = stopped || state.busy.has(b.dataset.id); });
+  }
   paintCount();
 }
 
@@ -241,14 +294,24 @@ function renderPanel() {
   });
   $("#reset-all").addEventListener("click", resetAll);
   $("#list").addEventListener("change", onToggle);
+  $("#list").addEventListener("click", onOptClick);
 }
 
 // ---------- Стоп қою / алу ----------
-async function onToggle(e) {
+function onToggle(e) {
   const input = e.target.closest(".switch");
   if (!input) return;
-  const id = String(input.dataset.id);
-  const stop = !input.checked;              // қосқыш өшірулі = стопта
+  setStop(String(input.dataset.id), !input.checked);   // қосқыш өшірулі = стопта
+}
+
+function onOptClick(e) {
+  const btn = e.target.closest(".opt");
+  if (!btn || btn.disabled) return;
+  const id = String(btn.dataset.id);
+  setStop(id, !state.stopped.has(id));
+}
+
+async function setStop(id, stop) {
   state.busy.add(id);
   if (stop) state.stopped.add(id); else state.stopped.delete(id);
   paintRow(id);

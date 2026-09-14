@@ -96,12 +96,13 @@ button { cursor: pointer; }
 .group__title { font-size: 14px; letter-spacing: .01em; color: var(--muted); font-weight: 700; margin: 0 0 8px 4px; }
 .rows { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
 
+.item { border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
 .row {
   display: grid; grid-template-columns: 52px 1fr auto auto; align-items: center; gap: 12px;
-  padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer;
+  padding: 10px 14px; cursor: pointer;
   transition: background-color .15s ease;
 }
-.row:last-child { border-bottom: 0; }
 .row:hover { background: #faf9f7; }
 .row--stopped { background: var(--stop-soft); }
 .row--stopped:hover { background: #ffe1d3; }
@@ -129,6 +130,27 @@ button { cursor: pointer; }
 .switch:checked::after { transform: translateX(24px); }
 .switch:disabled { opacity: .55; cursor: progress; }
 
+/* Көлем/дәм батырмалары: жасыл нүкте = бар, сызылған = стопта */
+.opts { display: grid; gap: 8px; padding: 0 14px 12px 78px; }
+.item:has(.row--stopped) { background: var(--stop-soft); }
+.opts--off { opacity: .45; }
+.opts--off .opt::before { background: var(--muted); }
+.opts__line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.opts__name { min-width: 110px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.opts__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.opt {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 36px; padding: 0 13px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--card);
+  font-weight: 700; font-size: 13.5px;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.opt::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+.opt:hover { border-color: var(--ink); }
+.opt--stopped { background: var(--stop-soft); border-color: #f5c3ad; color: var(--stop); text-decoration: line-through; }
+.opt--stopped::before { background: var(--stop); }
+.opt:disabled { cursor: default; border-color: var(--line); }
+
 /* ---------- Хабарлама ---------- */
 .toast {
   position: fixed; left: 50%; bottom: calc(20px + var(--safe-b)); z-index: 30;
@@ -145,4 +167,6 @@ button { cursor: pointer; }
   .row { grid-template-columns: 44px 1fr auto; gap: 10px; padding: 10px 12px; }
   .row__img { width: 44px; height: 36px; }
   .row__state { display: none; }
+  .opts { padding: 0 12px 12px 66px; }
+  .opts__name { min-width: 0; width: 100%; }
 }
